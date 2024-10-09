@@ -58,3 +58,6 @@ generate_cert client "Client-only" "-extfile config/cert/openssl.cnf -extensions
 generate_cert cert "Generic-cert"
 
 [ -f config/cert/application.dh ] || openssl dhparam -out config/cert/application.dh 2048
+
+mkdir -p config/cert/CAs
+[ -f config/cert/CAs/ca.crt ] || cp config/cert/ca.crt config/cert/CAs/ca.crt

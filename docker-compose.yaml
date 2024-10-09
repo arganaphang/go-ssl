@@ -30,6 +30,8 @@ services:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
     command: server /data --console-address ":9001"
+    volumes:
+      - ./config/cert:/home/.minio/certs
   postgres:
     image: postgres:alpine
     ports:

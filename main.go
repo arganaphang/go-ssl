@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -16,17 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRedis() (*redis.Client, error) {
-	url, ok := os.LookupEnv("REDIS_URL")
-	if !ok {
-		return nil, errors.New("REDIS_URL is missing")
-	}
-
-	opts, err := redis.ParseURL(url)
-	if err != nil {
-		return nil, err
-	}
-
+func NewTLSConfig() (*tls.Config, error) {
 	cert, err := tls.LoadX509KeyPair("./config/cert/client.crt", "./config/cert/client.key")
 	if err != nil {
 		return nil, err
@@ -38,15 +29,30 @@ func NewRedis() (*redis.Client, error) {
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
+	return &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true,
+		RootCAs:            caCertPool,
+		Certificates:       []tls.Certificate{cert},
+	}, nil
+}
+
+func NewRedis(tlsConfig *tls.Config) (*redis.Client, error) {
+	url, ok := os.LookupEnv("REDIS_URL")
+	if !ok {
+		return nil, errors.New("REDIS_URL is missing")
+	}
+
+	opts, err := redis.ParseURL(url)
+	if err != nil {
+		return nil, err
+	}
 
 	client := redis.NewClient(&redis.Options{
-		Addr: opts.Addr,
-		TLSConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true,
-			RootCAs:            caCertPool,
-			Certificates:       []tls.Certificate{cert},
-		},
+		Addr:      opts.Addr,
+		Username:  opts.Username,
+		Password:  opts.Password,
+		TLSConfig: tlsConfig,
 	})
 
 	if err := client.Ping(context.Background()).Err(); err != nil {
@@ -56,7 +62,7 @@ func NewRedis() (*redis.Client, error) {
 	return client, nil
 }
 
-func NewMinio() (*minio.Client, error) {
+func NewMinio(tlsConfig *tls.Config) (*minio.Client, error) {
 	url, ok := os.LookupEnv("MINIO_URL")
 	if !ok {
 		return nil, errors.New("MINIO_URL is missing")
@@ -73,8 +79,11 @@ func NewMinio() (*minio.Client, error) {
 	}
 
 	client, err := minio.New(url, &minio.Options{
-		Creds: credentials.NewStaticV4(accessKey, secretKey, ""),
-		// Secure: true,
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: true,
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -106,14 +115,18 @@ func NewPostgres() (*sqlx.DB, error) {
 }
 
 func main() {
-	if _, err := NewMinio(); err != nil {
-		log.Fatalln("minio ", err.Error())
+	tlsConfig, err := NewTLSConfig()
+	if err != nil {
+		log.Fatalln("tls config", err.Error())
+	}
+	if _, err := NewMinio(tlsConfig); err != nil {
+		log.Fatalln("minio", err.Error())
 	}
 
 	if _, err := NewPostgres(); err != nil {
-		log.Fatalln("postgres ", err.Error())
+		log.Fatalln("postgres", err.Error())
 	}
-	if _, err := NewRedis(); err != nil {
-		log.Fatalln("redis ", err.Error())
+	if _, err := NewRedis(tlsConfig); err != nil {
+		log.Fatalln("redis", err.Error())
 	}
 }

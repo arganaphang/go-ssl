@@ -55,9 +55,9 @@ _END_
 
 generate_cert server "Server-only" "-extfile config/cert/openssl.cnf -extensions server_cert"
 generate_cert client "Client-only" "-extfile config/cert/openssl.cnf -extensions client_cert"
-generate_cert cert "Generic-cert"
-
-[ -f config/cert/application.dh ] || openssl dhparam -out config/cert/application.dh 2048
+generate_cert cert "localhost"
 
 mkdir -p config/cert/CAs
 [ -f config/cert/CAs/ca.crt ] || cp config/cert/ca.crt config/cert/CAs/ca.crt
+
+[ -f config/cert/application.dh ] || openssl dhparam -out config/cert/application.dh 2048

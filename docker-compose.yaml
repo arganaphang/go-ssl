@@ -34,9 +34,25 @@ services:
       - ./config/cert:/home/.minio/certs
   postgres:
     image: postgres:alpine
+    command:
+      [
+        "-c",
+        "ssl=on",
+        "-c",
+        "ssl_cert_file=/cert/cert.crt",
+        "-c",
+        "ssl_key_file=/cert/cert.key",
+        "-c",
+        "ssl_ca_file=/cert/ca.crt",
+        "-c",
+        "hba_file=/etc/postgresql/pg_hba.conf",
+      ]
     ports:
       - 5432:5432
     environment:
       POSTGRES_DB: database
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./config/cert:/cert
+      - ./config/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf

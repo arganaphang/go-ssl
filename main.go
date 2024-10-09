@@ -10,8 +10,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/redis/go-redis/v9"
@@ -96,13 +97,17 @@ func NewMinio(tlsConfig *tls.Config) (*minio.Client, error) {
 	return client, nil
 }
 
-func NewPostgres() (*sqlx.DB, error) {
+func NewPostgres(tlsConfig *tls.Config) (*sqlx.DB, error) {
 	url, ok := os.LookupEnv("POSTGRES_URL")
 	if !ok {
 		return nil, errors.New("POSTGRES_URL is missing")
 	}
 
-	client, err := sqlx.Connect("postgres", url)
+	connConfig, _ := pgx.ParseConfig(url)
+	connConfig.TLSConfig = tlsConfig
+	connStr := stdlib.RegisterConnConfig(connConfig)
+
+	client, err := sqlx.Connect("pgx", connStr)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +128,7 @@ func main() {
 		log.Fatalln("minio", err.Error())
 	}
 
-	if _, err := NewPostgres(); err != nil {
+	if _, err := NewPostgres(tlsConfig); err != nil {
 		log.Fatalln("postgres", err.Error())
 	}
 	if _, err := NewRedis(tlsConfig); err != nil {

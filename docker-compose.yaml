@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: redis:alpine
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "redispassword",
+        "--tls-port",
+        "6379",
+        "--port",
+        "0",
+        "--tls-cert-file",
+        "/cert/cert.crt",
+        "--tls-key-file",
+        "/cert/cert.key",
+        "--tls-ca-cert-file",
+        "/cert/ca.crt",
+      ]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./config/cert:/cert
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+    command: server /data --console-address ":9001"
+  postgres:
+    image: postgres:alpine
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres

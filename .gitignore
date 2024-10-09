@@ -1,0 +1,8 @@
+.DS_Store
+
+# Binary File
+main
+
+# Environment Variable
+.env*
+!.env.example
